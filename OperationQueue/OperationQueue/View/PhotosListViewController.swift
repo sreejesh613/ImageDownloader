@@ -49,6 +49,7 @@ class PhotosListViewController: BaseViewController {
         initializeImageViews()
         initializeSegmentedControl()
         initializeProgressViews()
+        initializeProgressLabels()
         storeImageUrls()
         addNotificationObserver()
     }
@@ -74,6 +75,15 @@ class PhotosListViewController: BaseViewController {
         }
     }
     
+    fileprivate func initializeProgressLabels() {
+        DispatchQueue.main.async {
+            self.progressLabel1.text = "0%"
+            self.progressLabel2.text = "0%"
+            self.progressLabel3.text = "0%"
+            self.progressLabel4.text = "0%"
+        }
+    }
+    
     fileprivate func storeImageUrls() {
         imageDownloadVM?.storeImageUrls()
     }
@@ -82,9 +92,14 @@ class PhotosListViewController: BaseViewController {
         NotificationCenter.default.addObserver(self, selector: #selector(allImagesDownloaded(_:)), name: Notification.Name(rawValue: "allImagesDownloaded"), object: nil)
     }
     
+    deinit {
+        NotificationCenter.default.removeObserver(self)
+    }
+    
     @objc func allImagesDownloaded(_ notification: Notification) {
         DispatchQueue.main.async {
             self.hideActivityIndicator()
+            self.syncAsyncSegment.isUserInteractionEnabled = true
         }
     }
     
@@ -101,6 +116,8 @@ class PhotosListViewController: BaseViewController {
     
     @IBAction func segmentChanged(_ sender: UISegmentedControl) {
         self.initializeImageViews()
+        self.initializeProgressViews()
+        self.initializeProgressLabels()
         switch sender.selectedSegmentIndex {
         case 0:
             self.selectedSegment = .synchronous
@@ -120,6 +137,7 @@ extension PhotosListViewController: ImageDownloadViewModelDelegate {
     //Sequential download
     fileprivate func startSequentialDownload() {
         self.showActivityIndicator()
+        self.syncAsyncSegment.isUserInteractionEnabled = false
         imageDownloadVM.startSequentialDownload()
     }
     
