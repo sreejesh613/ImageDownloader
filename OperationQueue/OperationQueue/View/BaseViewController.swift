@@ -29,6 +29,7 @@ class BaseViewController: UIViewController {
     func hideActivityIndicator() {
         if activityView != nil {
             activityView?.stopAnimating()
+            activityView?.removeFromSuperview()
         }
     }
     

@@ -24,7 +24,7 @@ extension ImageDownloadViewModel {
     func storeImageUrls() {
         var i = 1
         for url in ImageUrls.allCases {
-            let imageRecord = ImageRecord(name: "image \(i)", url: URL(string: url.rawValue))
+            let imageRecord = ImageRecord(name: "image \(i)", url: URL(string: url.rawValue), index: i)
             i += 1
             self.images.append(imageRecord)
         }
@@ -40,7 +40,16 @@ class ImageDownloadViewModel: NSObject {
     let photosListVC = PhotosListViewController()
     var downloadTask: URLSessionDownloadTask!
     
+    var queue : OperationQueue!
+    var downloadOP: DownloadOperation?
+    
     weak var delegate: ImageDownloadViewModelDelegate?
+    
+    override init () {
+        super.init()
+        queue = OperationQueue()
+        queue.maxConcurrentOperationCount = 1
+    }
     
     func fetchPhotoDetails(url: URL) {
         
@@ -57,21 +66,44 @@ class ImageDownloadViewModel: NSObject {
 //MARK: SEQUENTIAL DOWNLOAD
 extension ImageDownloadViewModel {
     
-    func startSequentialDownload(downloadTask: DownloadTask, session: URLSession) {
-        let operationQueue = OperationQueue()
-        operationQueue.name = "Download Queue"
-        operationQueue.maxConcurrentOperationCount = 4
+    func startSequentialDownload() {
         
-        for i in 0..<images.count {
-            guard let url = images[i].url else { return }
+        if images.count != 0 {
             
-            operationQueue.addOperation(DownloadOperation(session: session, url: url))
-            print(url)
-//            downloadTask.download(url: url) { progress in
-//                print("Progress received:\(i)-- \(progress)")
-//                self.delegate?.progressReceived(for: i, progress: progress)
-//            }
+            //Finished downloading all images
+            let completionOperation = BlockOperation {
+                print("finished downloading all images")
+                
+                NotificationCenter.default.post(name: NSNotification.Name(rawValue: "allImagesDownloaded"), object: nil)
+            }
             
+            for image in images {
+                
+                let operation = DownloadOperation( downloadTaskURL: image.url, index: image.index, completionHandler: { (localURL, urlResponse, error, originalUrl)  in
+                    
+                    var index = 0
+                    if let url = originalUrl {
+                        let indexOfItem = CommonMethods.getIndexOf(url.absoluteString, images: self.images)
+                        index = indexOfItem
+                    }
+                    
+                    //File URL received
+                    guard let fileUrl = localURL else {
+                        return
+                    }
+                    let data = try! Data(contentsOf: fileUrl)
+                    let imageDownloaded = UIImage(data: data)
+                    
+                    self.delegate?.imageDownloaded(image: imageDownloaded, index: index)
+                })
+                operation.delegate = self
+                completionOperation.addDependency(operation)
+                self.queue.addOperation(operation)
+            }
+            self.queue.addOperation(completionOperation)
+
+        } else {
+            return
         }
     }
 }
@@ -86,10 +118,11 @@ extension ImageDownloadViewModel {
     }
 }
 
+//MARK: URLSESSION DOWNLOAD DELEGATES
 extension ImageDownloadViewModel: URLSessionDownloadDelegate {
     
     func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didWriteData bytesWritten: Int64, totalBytesWritten: Int64, totalBytesExpectedToWrite: Int64) {
-        //Pass percentage to view
+
         let written = Float(totalBytesWritten) * 100
         let totalExpected = Float(totalBytesExpectedToWrite)
         let percentage = written/totalExpected
@@ -97,7 +130,7 @@ extension ImageDownloadViewModel: URLSessionDownloadDelegate {
         //Calculate index of the item
         var indexOfItem = 0
         if let url = downloadTask.response?.url {
-            indexOfItem = self.getIndexOf(url.absoluteString)
+            indexOfItem = CommonMethods.getIndexOf(url.absoluteString, images: self.images) 
         }
         
         self.delegate?.progressReceived(for: indexOfItem, progress: percentage)
@@ -110,7 +143,7 @@ extension ImageDownloadViewModel: URLSessionDownloadDelegate {
         //Calculate index of the item
         var indexOfItem = 0
         if let url = downloadTask.response?.url {
-            indexOfItem = self.getIndexOf(url.absoluteString)
+            indexOfItem = CommonMethods.getIndexOf(url.absoluteString, images: self.images)
         }
 
         //File URL received
@@ -121,11 +154,13 @@ extension ImageDownloadViewModel: URLSessionDownloadDelegate {
     }
 }
 
-//Extension to find index of the image url from the images array
-extension ImageDownloadViewModel {
-    func getIndexOf(_ item: String) -> Int {
-        let indexCalculated = images.map({ $0.url }).firstIndex(of: URL(string: item)) ?? 0
-        return indexCalculated
+extension ImageDownloadViewModel: DownloadOperationDelegate {
+    
+    func imageFileReceived(url: URL, index: Int) {
+        print("Image file received: \(url), for index: \(index)")
     }
     
+    func progressReceived(progress: Float, index: Int) {
+        print("Progress received: \(progress), for index: \(index)")
+    }
 }

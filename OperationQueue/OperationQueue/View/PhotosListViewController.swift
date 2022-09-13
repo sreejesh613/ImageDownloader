@@ -31,18 +31,12 @@ class PhotosListViewController: BaseViewController {
     
     @IBOutlet weak var syncAsyncSegment: UISegmentedControl!
     
+    //MARK: PROPERTIES
     var selectedSegment: SegmentControlState = .synchronous
-    
     var imageDownloadVM: ImageDownloadViewModel!
+    var queue : OperationQueue!
     
-    var downloadTask: DownloadTask!
-    
-    override func viewWillAppear(_ animated: Bool) {
-        super.viewWillAppear(animated)
-        
-        print("ViewWillAppear called")
-    }
-    
+    //MARK: VIEW LIFE CYCLE METHODS
     override func viewDidLoad() {
         super.viewDidLoad()
         
@@ -50,16 +44,17 @@ class PhotosListViewController: BaseViewController {
         
         imageDownloadVM = ImageDownloadViewModel()
         imageDownloadVM?.delegate = self
-        initializeUI()
+        queue = OperationQueue()
+        queue.maxConcurrentOperationCount = 1
+        initializeImageViews()
         initializeSegmentedControl()
         initializeProgressViews()
         storeImageUrls()
-        
-        downloadTask = DownloadTask()
+        addNotificationObserver()
     }
     
-    
-    fileprivate func initializeUI() {
+    //MARK: METHODS
+    fileprivate func initializeImageViews() {
         imageView1.image = UIImage(named: "NoData")
         imageView2.image = UIImage(named: "NoData")
         imageView3.image = UIImage(named: "NoData")
@@ -83,23 +78,29 @@ class PhotosListViewController: BaseViewController {
         imageDownloadVM?.storeImageUrls()
     }
     
+    func addNotificationObserver() {
+        NotificationCenter.default.addObserver(self, selector: #selector(allImagesDownloaded(_:)), name: Notification.Name(rawValue: "allImagesDownloaded"), object: nil)
+    }
+    
+    @objc func allImagesDownloaded(_ notification: Notification) {
+        DispatchQueue.main.async {
+            self.hideActivityIndicator()
+        }
+    }
+    
     @IBAction func startTapped(_ sender: UIButton) {
         switch selectedSegment {
         case .synchronous:
-            
             //Initiate synchronous download operation
             startSequentialDownload()
-            
         case .asynchronous:
-            
             //Initiate asynchronous download operation
             startAsyncDownload()
         }
     }
     
-
-    
     @IBAction func segmentChanged(_ sender: UISegmentedControl) {
+        self.initializeImageViews()
         switch sender.selectedSegmentIndex {
         case 0:
             self.selectedSegment = .synchronous
@@ -118,7 +119,8 @@ extension PhotosListViewController: ImageDownloadViewModelDelegate {
     //Request
     //Sequential download
     fileprivate func startSequentialDownload() {
-        imageDownloadVM?.startSequentialDownload(downloadTask: self.downloadTask, session: downloadTask.session)
+        self.showActivityIndicator()
+        imageDownloadVM.startSequentialDownload()
     }
     
     //Asynchronous download

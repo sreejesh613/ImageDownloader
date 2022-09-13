@@ -18,11 +18,12 @@ enum ImageUrls: String, CaseIterable {
 class ImageRecord {
     let name: String
     let url: URL?
-    var state = PhotoState.ready
     var image = UIImage(named: "Placeholder")
+    var index: Int?
     
-    init(name: String, url: URL?) {
+    init(name: String, url: URL?, index: Int) {
         self.name = name
         self.url = url
+        self.index = index
     }
 }
