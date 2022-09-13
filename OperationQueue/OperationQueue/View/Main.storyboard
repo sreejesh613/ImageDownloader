@@ -159,6 +159,9 @@
                                     <segment title="Async"/>
                                 </segments>
                                 <color key="selectedSegmentTintColor" systemColor="linkColor"/>
+                                <connections>
+                                    <action selector="segmentChanged:" destination="BYZ-38-t0r" eventType="valueChanged" id="WLP-Cg-9mX"/>
+                                </connections>
                             </segmentedControl>
                         </subviews>
                         <viewLayoutGuide key="safeArea" id="6Tk-OE-BBY"/>

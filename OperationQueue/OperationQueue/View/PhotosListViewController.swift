@@ -49,7 +49,7 @@ class PhotosListViewController: BaseViewController {
         print("ViewDidLoad called")
         
         imageDownloadVM = ImageDownloadViewModel()
-//        imageDownloadVM?.delegate = self
+        imageDownloadVM?.delegate = self
         initializeUI()
         initializeSegmentedControl()
         initializeProgressViews()
@@ -57,6 +57,7 @@ class PhotosListViewController: BaseViewController {
         
         downloadTask = DownloadTask()
     }
+    
     
     fileprivate func initializeUI() {
         imageView1.image = UIImage(named: "NoData")
@@ -82,41 +83,18 @@ class PhotosListViewController: BaseViewController {
         imageDownloadVM?.storeImageUrls()
     }
     
-//    func pause(){
-//        self.downloadTask.cancel{resumeDataOrNil in
-//            guard let resumeData = resumeDataOrNil else {
-//                return
-//            }
-//            self.downloadData = resumeData
-//            self.downloadTask = nil
-//            self.isDownload = false
-//
-//            DispatchQueue.main.async {
-//                self.startButton.setTitle("Resume", for: UIControl.State.normal)
-//            }
-//        }
-//    }
-    
     @IBAction func startTapped(_ sender: UIButton) {
         switch selectedSegment {
         case .synchronous:
-            //Initiate synchronous download operation
-            imageDownloadVM?.startSequentialDownload(downloadTask: self.downloadTask, session: downloadTask.session)
             
+            //Initiate synchronous download operation
+            startSequentialDownload()
             
         case .asynchronous:
+            
             //Initiate asynchronous download operation
-            print("Initiate asynchronous download operations")
+            startAsyncDownload()
         }
-        
-//        if(!isDownload && downloadData == nil) {
-//            let url = URL.init(string: self.url)
-//            let request:URLRequest = URLRequest.init(url: url!)
-//            self.downloadTask = self.urlSession.downloadTask(with: request)
-//            self.downloadTask.resume()
-//            isDownload = true;
-//            progressLabel1.text = "0%"
-//        }
     }
     
 
@@ -134,58 +112,65 @@ class PhotosListViewController: BaseViewController {
     }
 }
 
+//MARK: API HANDLING
+extension PhotosListViewController: ImageDownloadViewModelDelegate {
 
-
-//Download operations
-//extension PhotosListViewController {
-//    func downloadImages() {
-//        switch selectedSegment {
-//        case .synchronous:
-//            //Create a serial queue
-//            imageDownloadVM?.createSerialQueue()
-//
-//        case .asynchronous:
-//            //Create an asynchrous queue
-//            imageDownloadVM?.createAsyncQueue()
-//
-//        default:
-//            break
-//        }
-//    }
-//}
-//
-////MARK: API HANDLING
-//extension PhotosListViewController: ImageDownloadViewModelDelegate {
-//
-//    //Request
-//    func fetchImages() {
-//        imageDownloadVM
-//    }
-//
-//    //Response
-//    func photosReceived(photos: [ImageRecord]?, _ error: Error?, _ errorMessage: String?) {
-//
-//        guard let error = error else {
-//            return
-//        }
-//        //Error received
-//
-//
-//    }
-//}
-
-
-
-extension PhotosListViewController: URLSessionDownloadDelegate {
-    
-    func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didWriteData bytesWritten: Int64, totalBytesWritten: Int64, totalBytesExpectedToWrite: Int64) {
-        let percentOfDownload = totalBytesWritten/totalBytesExpectedToWrite
-        //Pass percentage to view
-        print("Percentage: \(percentOfDownload * 100)")
+    //Request
+    //Sequential download
+    fileprivate func startSequentialDownload() {
+        imageDownloadVM?.startSequentialDownload(downloadTask: self.downloadTask, session: downloadTask.session)
     }
     
-    func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didFinishDownloadingTo location: URL) {
-        //Finished downloading
-        print("Finished downloading to location: \(location)")
+    //Asynchronous download
+    fileprivate func startAsyncDownload() {
+        imageDownloadVM.startAsynchronousDownload()
     }
+    
+    //Async Download response
+    func imageDownloaded(image: UIImage?, index: Int) {
+        self.setImage(image: image, index: index)
+    }
+    
+    func didFailToDownload(with error: Error) {
+        self.showAlert(title: "Error", message: error.localizedDescription, actionTitles: ["OK"], actions: [nil])
+    }
+    
+    func progressReceived(for index: Int, progress: Float) {
+        DispatchQueue.main.async {
+            switch index {
+            case 0:
+                self.progressLabel1.text = "\(Int(progress))%"
+                self.progressView1.progress = progress
+            case 1:
+                self.progressLabel2.text = "\(Int(progress))%"
+                self.progressView2.progress = progress
+            case 2:
+                self.progressLabel3.text = "\(Int(progress))%"
+                self.progressView3.progress = progress
+            case 3:
+                self.progressLabel4.text = "\(Int(progress))%"
+                self.progressView4.progress = progress
+            default:
+                break
+            }
+        }
+    }
+    
+    fileprivate func setImage(image: UIImage?, index: Int) {
+        DispatchQueue.main.async {
+            switch index {
+            case 0:
+                self.imageView1.image = image
+            case 1:
+                self.imageView2.image = image
+            case 2:
+                self.imageView3.image = image
+            case 3:
+                self.imageView4.image = image
+            default:
+                break
+            }
+        }
+    }
+    
 }

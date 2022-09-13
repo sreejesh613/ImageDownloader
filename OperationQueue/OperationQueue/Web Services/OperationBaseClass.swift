@@ -61,13 +61,12 @@ class AsynchronousOperation: Operation {
         main()
     }
     
-    /// Subclasses must implement this to perform their work and they must not call `super`. The default implementation of this function throws an exception.
     
     open override func main() {
         fatalError("Subclasses must implement `main`.")
     }
     
-    /// Call this function to finish an operation that is currently executing
+    // Call this function to finish an operation that is currently executing
     
     public final func finish() {
         if !isFinished { state = .finished }

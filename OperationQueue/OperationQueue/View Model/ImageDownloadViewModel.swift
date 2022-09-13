@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import UIKit
 
 enum SegmentControlState: Int {
     case synchronous = 0
@@ -13,7 +14,9 @@ enum SegmentControlState: Int {
 }
 
 protocol ImageDownloadViewModelDelegate: AnyObject {
-    func photosReceived(photos: [ImageRecord]?, _ error: Error?, _ errorMessage: String?)
+    func imageDownloaded(image: UIImage?, index: Int)
+    func didFailToDownload(with error: Error)
+    func progressReceived(for index: Int, progress: Float)
 }
 
 //MARK: STORE IMAGE URLS
@@ -30,63 +33,99 @@ extension ImageDownloadViewModel {
 
 class ImageDownloadViewModel: NSObject {
     
-    let commnHandler = CommunicationHandler()
     var images: [ImageRecord] = []
+    var index = -1
+    
+    typealias downloadCompletion = ((_ urlReceived: URL?, _ error: Error?) -> Void)
+    let photosListVC = PhotosListViewController()
+    var downloadTask: URLSessionDownloadTask!
     
     weak var delegate: ImageDownloadViewModelDelegate?
-
-
     
-    override init() {
-        super.init()
+    func fetchPhotoDetails(url: URL) {
+        
+        //start activity indicator
+        let queue = OperationQueue()
+        let session = URLSession(configuration: .default, delegate: self, delegateQueue: queue)
+        let urlRequest = URLRequest(url: url)
+        downloadTask = session.downloadTask(with: urlRequest)
+        
+        downloadTask.resume()
+    }
+}
+
+//MARK: SEQUENTIAL DOWNLOAD
+extension ImageDownloadViewModel {
+    
+    func startSequentialDownload(downloadTask: DownloadTask, session: URLSession) {
+        let operationQueue = OperationQueue()
+        operationQueue.name = "Download Queue"
+        operationQueue.maxConcurrentOperationCount = 4
+        
+        for i in 0..<images.count {
+            guard let url = images[i].url else { return }
+            
+            operationQueue.addOperation(DownloadOperation(session: session, url: url))
+            print(url)
+//            downloadTask.download(url: url) { progress in
+//                print("Progress received:\(i)-- \(progress)")
+//                self.delegate?.progressReceived(for: i, progress: progress)
+//            }
+            
+        }
     }
 }
 
 //MARK: ASYNCHRONOUS DOWNLOAD
 extension ImageDownloadViewModel {
     func startAsynchronousDownload() {
-        for image in images {
-            guard let imageUrl = image.url else { return }
-            commnHandler.fetchPhotoDetails(url: imageUrl)
+        for index in 0..<images.count {
+            guard let imageUrl = images[index].url else { return }
+            self.fetchPhotoDetails(url: imageUrl)
         }
     }
 }
 
-//MARK: SEQUENTIAL DOWNLOAD
-extension ImageDownloadViewModel {
-    func startSequentialDownload(downloadTask: DownloadTask, session: URLSession) {
-        let operationQueue = OperationQueue()
-        operationQueue.name = "Download Queue"
-        operationQueue.maxConcurrentOperationCount = 1
+extension ImageDownloadViewModel: URLSessionDownloadDelegate {
+    
+    func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didWriteData bytesWritten: Int64, totalBytesWritten: Int64, totalBytesExpectedToWrite: Int64) {
+        //Pass percentage to view
+        let written = Float(totalBytesWritten) * 100
+        let totalExpected = Float(totalBytesExpectedToWrite)
+        let percentage = written/totalExpected
         
-        for image in images {
-            guard let url = image.url else { return }
-            
-            operationQueue.addOperation(DownloadOperation(session: session, url: url))
-
-            downloadTask.download(url: url) { progress in
-                print("Progress received: \(progress)")
-            }
-            
+        //Calculate index of the item
+        var indexOfItem = 0
+        if let url = downloadTask.response?.url {
+            indexOfItem = self.getIndexOf(url.absoluteString)
         }
+        
+        self.delegate?.progressReceived(for: indexOfItem, progress: percentage)
+    }
+    
+    func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didFinishDownloadingTo location: URL) {
+        //Finished downloading
+        print("Finished downloading to location: \(location)")
+        
+        //Calculate index of the item
+        var indexOfItem = 0
+        if let url = downloadTask.response?.url {
+            indexOfItem = self.getIndexOf(url.absoluteString)
+        }
+
+        //File URL received
+        let data = try! Data(contentsOf: location)
+        let imageDownloaded = UIImage(data: data)
+        
+        self.delegate?.imageDownloaded(image: imageDownloaded, index: indexOfItem)
     }
 }
 
-
-
-
+//Extension to find index of the image url from the images array
 extension ImageDownloadViewModel {
-    
-    //Create Serial Queue
-    func createSerialQueue(with imageDetails: [ImageRecord]) {
-        let serialQueue = DispatchQueue(label: "Serial Queue")
-        serialQueue.sync {
-            
-        }
+    func getIndexOf(_ item: String) -> Int {
+        let indexCalculated = images.map({ $0.url }).firstIndex(of: URL(string: item)) ?? 0
+        return indexCalculated
     }
     
-    //Create Asynchronous Queue
-    func createAsyncQueue() {
-        
-    }
 }
