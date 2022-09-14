@@ -149,6 +149,8 @@ extension PhotosListViewController: ImageDownloadViewModelDelegate {
     //Async Download response
     func imageDownloaded(image: UIImage?, index: Int) {
         self.setImage(image: image, index: index)
+        
+        progressReceived(for: index, progress: 100)
     }
     
     func didFailToDownload(with error: Error) {

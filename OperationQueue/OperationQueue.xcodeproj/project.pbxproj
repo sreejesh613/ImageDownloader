@@ -94,6 +94,14 @@
 			path = Common;
 			sourceTree = "<group>";
 		};
+		7963E9A128D18AA500282535 /* Dowload Operation */ = {
+			isa = PBXGroup;
+			children = (
+				794A335428D10E0C00FA8685 /* DownloadOperation.swift */,
+			);
+			path = "Dowload Operation";
+			sourceTree = "<group>";
+		};
 		79B84CC628C86C9600C007B8 = {
 			isa = PBXGroup;
 			children = (
@@ -121,6 +129,7 @@
 				79B84D4828CC90CB00C007B8 /* Model */,
 				79B84D4928CC90D300C007B8 /* View */,
 				79B84D4A28CC90D900C007B8 /* View Model */,
+				7963E9A128D18AA500282535 /* Dowload Operation */,
 				79B84CD228C86C9600C007B8 /* AppDelegate.swift */,
 				79B84CD428C86C9600C007B8 /* SceneDelegate.swift */,
 				79B84CDB28C86C9700C007B8 /* Assets.xcassets */,
@@ -169,7 +178,6 @@
 			isa = PBXGroup;
 			children = (
 				79B84D0628C8839600C007B8 /* ImageDownloadViewModel.swift */,
-				794A335428D10E0C00FA8685 /* DownloadOperation.swift */,
 			);
 			path = "View Model";
 			sourceTree = "<group>";
